@@ -57,6 +57,8 @@ class Elevator {
 		this.leftDoor = new LeftDoor(this);
 		this.doorsOpen = false;
 		this.currentFloor = currentFloor;
+		this.capacity = 10;
+		this.passengers = [];
 	}
 	draw() {
 		ctx.fillStyle = "#f4c842"
@@ -73,7 +75,6 @@ class Elevator {
 			this.leftDoor.x -= amount;
 			this.rightDoor.x += amount;
 		}
-		console.log("MOVED DOORS");
 		this.draw();
 	}
 	moveVertical(amount, direction) {
@@ -90,7 +91,7 @@ class Elevator {
 		this.draw();
 	}
 
-	openDoors() {
+	openDoors(callback) {
 		var t = this;
 		if(this.doorsOpen === false) {
 			var doorTimer = setInterval(function() {
@@ -99,15 +100,18 @@ class Elevator {
 				}
 				else {
 					t.doorsOpen = true;
-					clearInterval(doorTimer)
-					
+					clearInterval(doorTimer);
+					callback();
 				}
-			}, 40);
+			}, 10);
+		}
+		else {
+			callback();
 		}
 		
 	}
 
-	closeDoors() {
+	closeDoors(callback) {
 		var t = this;
 		if(this.doorsOpen === true) {
 			var doorTimer = setInterval(function() {
@@ -116,10 +120,23 @@ class Elevator {
 				}
 				else {
 					t.doorsOpen = false;
-					clearInterval(doorTimer)
-					
+					clearInterval(doorTimer);
+					callback();
 				}
-			}, 40);
+			}, 10);
+		}
+		else {
+			callback();
+		}
+	}
+
+	loadPassenger(passenger) {
+		if(this.capacity > this.passengers.length) {
+			this.passengers.push(passenger);
+			return true;
+		}
+		else {
+			return false;
 		}
 	}
 	
@@ -141,6 +158,7 @@ class Floor {
 		
 		this.building = building;
 		this.waiters = 0;
+		// ylevel is the y value at the bottom of the floor.
 		this.ylevel = this.building.y + (((this.building.height / this.total))* index);
 	}
 	height() {
@@ -161,56 +179,66 @@ class Building {
 		for(var i = floors; i > 0; i--) {
 			var t = this;
 			t.floors.push(new Floor(i, floors, t));
-			console.log("made new floor");
 		}
 		for(var i = 0; i < elevators; i++) {
-			this.elevators.push(new Elevator(this.x + (i * this.width * (0.9 / elevators)), this.y, this.width * (0.9 / elevators), this.height / this.floors.length, 5));
+			this.elevators.push(new Elevator(this.x + (i * this.width * (0.9 / elevators)), this.y, this.width * (0.9 / elevators), this.height / this.floors.length, floors));
 		}
 		
 	}
 
 	elevatorToFloor(elevatorIndex, floorIndex, callback) {
+		(elevatorIndex);
 		if(this.elevators[elevatorIndex].currentFloor == floorIndex) {
-			callback();
+			this.elevators[elevatorIndex].openDoors(callback);
 			return;
 		}
 		else {
 			if(floorIndex < this.elevators[elevatorIndex].currentFloor) {
 				var t = this;
-				t.elevators[elevatorIndex].closeDoors();
-				var moveTimer = setInterval(function() {
-					if(t.floors[floorIndex].ylevel > t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y ) {
-						t.elevators[elevatorIndex].moveVertical(1, MoveDirection.DOWN);
-					}
-					else {
-						clearInterval(moveTimer)
-						t.elevators[elevatorIndex].openDoors();
-						t.elevators[elevatorIndex].currentFloor = floorIndex;
-						callback();
-					}
-				}, 20);
+				t.elevators[elevatorIndex].closeDoors(function() {
+					var moveTimer = setInterval(function() {
+						t.elevators[elevatorIndex].currentFloor = Math.round(t.floors.length - ((t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y) / t.height) * t.floors.length);
+						if(t.floors[floorIndex].ylevel > t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y ) {
+							t.elevators[elevatorIndex].moveVertical(1, MoveDirection.DOWN);
+							
+						}
+						else {
+							clearInterval(moveTimer)
+							t.elevators[elevatorIndex].currentFloor = floorIndex;
+							t.elevators[elevatorIndex].openDoors(callback);
+							
+							
+						}
+					}, 10);
+				});
+				
 			}
 			if(floorIndex > this.elevators[elevatorIndex].currentFloor) {
 				var t = this;
-				t.elevators[elevatorIndex].closeDoors();
-				var moveTimer = setInterval(function() {
-					if(t.floors[floorIndex].ylevel < t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y ) {
-						t.elevators[elevatorIndex].moveVertical(1, MoveDirection.UP);
-					}
-					else {
-						clearInterval(moveTimer);
-						t.elevators[elevatorIndex].openDoors();
-						t.elevators[elevatorIndex].currentFloor = floorIndex;
-						callback();
-					}
-				}, 20);
+				t.elevators[elevatorIndex].closeDoors(function() {
+					var moveTimer = setInterval(function() {
+						t.elevators[elevatorIndex].currentFloor = Math.round(t.floors.length - ((t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y) / t.height) * t.floors.length);
+						if(t.floors[floorIndex].ylevel < t.elevators[elevatorIndex].height + t.elevators[elevatorIndex].y ) {
+							t.elevators[elevatorIndex].moveVertical(1, MoveDirection.UP);
+						}
+						else {
+							clearInterval(moveTimer);
+							t.elevators[elevatorIndex].currentFloor = floorIndex;
+							t.elevators[elevatorIndex].openDoors(callback);
+							
+							
+						}
+					}, 10);
+				});
+				
 			}
 		}
 	}
 	
 	draw() {
 		// Draw the floors
-		for(let i = 0; i < this.floors.length; i++) {
+		for(var i = 0; i < this.floors.length; i++) {
+			ctx.beginPath();
 			ctx.fillStyle = "#ffffff";
 			ctx.lineWidth = 1;
 			var ycalc = this.y + ((this.height / this.floors.length) * i)
@@ -219,17 +247,9 @@ class Building {
 			ctx.stroke();
 		}
 		// Draw the elevators
-		for(let i = 0; i < this.elevators.length; i++) {
+		for(var i = 0; i < this.elevators.length; i++) {
+			ctx.beginPath();
 			this.elevators[i].draw();
-			//this.elevators[i].openDoors();
-			//var t = this;
-			// var nothing = setTimeout(function() {
-			// 	t.elevators[i].closeDoors();	
-			// 	t.doorsOpen = false;
-			// 	setTimeout(function() {
-			// 		t.elevatorToFloor(i, 4)
-			// 	}, Math.floor(Math.random() * 10000))
-			// }, Math.floor(Math.random() * 20000));
 		}
 		
 	}
@@ -240,14 +260,14 @@ function doMoveLoop(building, elevatorIndex) {
 		building.elevatorToFloor(elevatorIndex, Math.floor(Math.random() * (building.floors.length - 1) + 1), function() {
 			doMoveLoop(building, elevatorIndex);
 		});
-	}, Math.floor(Math.random() * 10000))
+	}, Math.floor(Math.random() * 5000) + 3000)
 }
 
 
 function main() {
 	canvas = document.getElementById("mycanvas");
-	canvas.width = window.innerWidth * 0.75;
-	canvas.height = window.innerHeight * 0.75;
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
 
 
 
@@ -256,20 +276,17 @@ function main() {
 	ctx.fillStyle = "#d8fff7";
 	ctx.fillRect(0,0,canvas.width,canvas.height);
 	var elevator1 = new Elevator(100,200, 200, 200, null);
-	var building = new Building(50, 50, 400, 600, 6, 8);
+	var building = new Building(0, 0, canvas.width * 0.75, canvas.height * 0.75, 10, 7);
 	setInterval(function() {
 		ctx.beginPath();
 		ctx.clearRect(0,0,canvas.width, canvas.height);
 		building.draw();
-	},1000/60)
-	doMoveLoop(building, 0);
-	doMoveLoop(building, 1);
-	doMoveLoop(building, 2);
-	doMoveLoop(building, 3);
-	doMoveLoop(building, 4);
-	doMoveLoop(building, 5);
-	doMoveLoop(building, 6);
-	doMoveLoop(building, 7);
+	},10)
+	for(var i = 0; i < building.elevators.length; i++) {
+		doMoveLoop(building, i);
+	}
+	
+
 }
 
 
@@ -284,7 +301,8 @@ function drawLineAtPlace(posX, posY) {
     ctx.moveTo(posX, posY);
     //ctx.rotate();
     ctx.lineTo(posX + 10, posY + 10);
-    ctx.stroke();
+	ctx.stroke();
+	
     //ctx.rotate(-pos);
 }
 
@@ -305,7 +323,7 @@ function drawDoorPercentageOpen(px, heightOfDoor, widthOfDoor) {
 	ctx.fillStyle = "rgb(255, 0, 0)";
 	ctx.fill();
 	ctx.stroke();
-	//console.log(px);
+	//(px);
 	ctx.beginPath();
 	
 	ctx.fillStyle = "rgb(0, 255, 0)";
