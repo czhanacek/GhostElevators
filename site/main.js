@@ -266,7 +266,7 @@ function doMoveLoop(building, elevatorIndex) {
 
 function main() {
 	canvas = document.getElementById("mycanvas");
-	canvas.width = window.innerWidth;
+	canvas.width = window.innerHeight / 2; 
 	canvas.height = window.innerHeight;
 
 
@@ -276,7 +276,7 @@ function main() {
 	ctx.fillStyle = "#d8fff7";
 	ctx.fillRect(0,0,canvas.width,canvas.height);
 	var elevator1 = new Elevator(100,200, 200, 200, null);
-	var building = new Building(0, 0, canvas.width * 0.75, canvas.height * 0.75, 12, 20);
+	var building = new Building(0, 0, canvas.width * 0.75, canvas.height * 0.75, 30, 10);
 	setInterval(function() {
 		ctx.beginPath();
 		ctx.clearRect(0,0,canvas.width, canvas.height);
